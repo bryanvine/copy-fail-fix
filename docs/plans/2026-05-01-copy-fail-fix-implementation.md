@@ -316,6 +316,9 @@ Expected: no output, exit 0.
 
 - [ ] **Step 3: Source-test core helpers in a subshell**
 
+`parse_args` exits the process on `--help` and on unknown flags, so the test
+calls must be wrapped in `( ... )` subshells to keep the test driver alive.
+
 ```bash
 bash -c '
 set -euo pipefail
@@ -326,11 +329,13 @@ kver_ge "6.8.0-115" "6.8.0-110" || { echo "FAIL ge1"; exit 1; }
 kver_ge "6.8.0-110" "6.8.0-110" || { echo "FAIL eq"; exit 1; }
 kver_ge "6.8.0-100" "6.8.0-110" && { echo "FAIL lt"; exit 1; } || true
 
-# Help text exits 0.
-parse_args --help >/dev/null || true   # parse_args calls exit 0 via subshell
+# Help: subshell exits 0; outer shell continues.
+( parse_args --help >/dev/null )
 
-# Unknown flag exits 64.
-( parse_args --bogus 2>/dev/null ); test $? -eq 64 || { echo "FAIL bad flag"; exit 1; }
+# Unknown flag: subshell exits 64; capture rc with the set -e-safe idiom.
+rc=0
+( parse_args --bogus 2>/dev/null ) || rc=$?
+test "$rc" -eq 64 || { echo "FAIL bad flag (rc=$rc)"; exit 1; }
 
 # Distro detect populates vars.
 detect_distro
