@@ -18,7 +18,6 @@ set -euo pipefail
 CFF_YES=0
 CFF_FORCE=0
 CFF_CHECK=0
-# shellcheck disable=SC2034  # used by Task 3 (mitigation actions)
 CFF_UNDO=0
 
 # shellcheck disable=SC2034  # used by Task 3 (mitigation actions)
@@ -154,7 +153,7 @@ kver_ge() {
     local a="$1" b="$2"
     if command -v dpkg >/dev/null 2>&1; then
         dpkg --compare-versions "$a" ge "$b"
-        return $?
+        return
     fi
     local smallest
     smallest=$(printf '%s\n%s\n' "$a" "$b" | sort -V | head -n 1)
