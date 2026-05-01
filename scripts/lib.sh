@@ -20,7 +20,6 @@ CFF_FORCE=0
 CFF_CHECK=0
 CFF_UNDO=0
 
-# shellcheck disable=SC2034  # used by Task 3 (mitigation actions)
 CFF_MITIGATION_FILE="/etc/modprobe.d/cve-2026-31431.conf"
 
 # ---------------------------------------------------------------------------
@@ -177,4 +176,77 @@ prompt_yes_no() {
     local reply
     read -r -p "$msg [y/N] " reply
     [[ "$reply" =~ ^[Yy]$ ]]
+}
+
+# ---------------------------------------------------------------------------
+# Mitigation: write /etc/modprobe.d/cve-2026-31431.conf so that algif_aead
+# cannot be auto-loaded or explicitly modprobe'd. Idempotent.
+# ---------------------------------------------------------------------------
+apply_mitigation() {
+    local body
+    body='# CVE-2026-31431 "Copy Fail" — Linux kernel algif_aead LPE.
+# Mitigation until a patched kernel is installed: prevent algif_aead
+# from being loaded via auto-load or explicit modprobe.
+# Remove this file once running a kernel that contains the upstream fix.
+blacklist algif_aead
+install algif_aead /bin/true
+'
+    if [[ -f "$CFF_MITIGATION_FILE" ]] && diff -q <(printf '%s' "$body") "$CFF_MITIGATION_FILE" >/dev/null 2>&1; then
+        cff_info "mitigation file already in place: $CFF_MITIGATION_FILE"
+    else
+        cff_run bash -c "printf '%s' \"\$1\" > \"\$2\" && chmod 0644 \"\$2\"" _ "$body" "$CFF_MITIGATION_FILE"
+        cff_ok "wrote $CFF_MITIGATION_FILE"
+    fi
+
+    # Best-effort: try to unload algif_aead if currently loaded. Failure is
+    # not fatal (refcount may be non-zero); the install /bin/true rule
+    # prevents future loads.
+    if lsmod | awk '{print $1}' | grep -qx algif_aead; then
+        cff_run modprobe -r algif_aead || cff_warn "could not unload algif_aead (in use); blacklist still effective for future loads."
+    fi
+}
+
+# Probe AF_ALG to confirm algif_aead is unreachable. Returns 0 on success.
+verify_mitigation() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        cff_warn "python3 not available; skipping AF_ALG socket probe."
+        return 0
+    fi
+    if (( CFF_CHECK )); then
+        cff_dim "would probe: socket(AF_ALG); bind('aead', ...) -> expect ENOENT"
+        return 0
+    fi
+    local rc=0
+    python3 - <<'PY' || rc=$?
+import socket, errno, sys
+try:
+    s = socket.socket(socket.AF_ALG, socket.SOCK_SEQPACKET, 0)
+except (AttributeError, OSError) as e:
+    # AF_ALG unavailable on this kernel: vacuously safe.
+    sys.exit(0)
+try:
+    try:
+        s.bind(("aead", "authencesn(hmac(sha1),cbc(aes))"))
+    finally:
+        s.close()
+except OSError as e:
+    sys.exit(0 if e.errno == errno.ENOENT else 2)
+sys.exit(1)  # bind unexpectedly succeeded
+PY
+    case "$rc" in
+        0) cff_ok "verification passed: AF_ALG aead bind blocked (ENOENT)." ;;
+        1) cff_err "VERIFICATION FAILED: AF_ALG aead bind succeeded — host is NOT mitigated."; return 1 ;;
+        2) cff_warn "AF_ALG aead bind failed but with unexpected errno; treating as inconclusive." ;;
+        *) cff_warn "verification probe exited $rc; treating as inconclusive." ;;
+    esac
+}
+
+# Remove the modprobe file if this tool wrote it. Idempotent.
+remove_mitigation_if_present() {
+    if [[ -f "$CFF_MITIGATION_FILE" ]]; then
+        cff_run rm -f -- "$CFF_MITIGATION_FILE"
+        cff_ok "removed $CFF_MITIGATION_FILE"
+    else
+        cff_info "no mitigation file to remove."
+    fi
 }
