@@ -250,3 +250,106 @@ remove_mitigation_if_present() {
         cff_info "no mitigation file to remove."
     fi
 }
+
+# ---------------------------------------------------------------------------
+# Orchestrators. Distro scripts call run_algorithm; universal.sh calls
+# run_mitigation_only.
+#
+# Contract for run_algorithm:
+#   Caller MUST set the following globals before calling:
+#     - EXPECTED_DISTRO_IDS  (bash array)
+#     - KERNEL_PKG           (string, e.g. "linux-image-generic")
+#     - PATCHED_KERNEL_VERSION (string, "PENDING" or a version comparable
+#                               to what the distro hooks below return)
+#   Caller MUST define the following functions:
+#     - distro_running_kernel_version    (echo current kernel package version)
+#     - distro_available_kernel_version  (echo candidate version, empty if none newer)
+#     - distro_install_kernel            (install KERNEL_PKG; reboot is user's job)
+# ---------------------------------------------------------------------------
+run_algorithm() {
+    parse_args "$@"
+
+    # --undo short-circuits everything else.
+    if (( CFF_UNDO )); then
+        require_root "$@"
+        remove_mitigation_if_present
+        cff_info "undo complete. If you have NOT yet rebooted into a patched"
+        cff_info "kernel, your host may again be vulnerable."
+        return 0
+    fi
+
+    require_root "$@"
+    # shellcheck disable=SC2154  # EXPECTED_DISTRO_IDS is caller-provided
+    assert_distro "${EXPECTED_DISTRO_IDS[@]}"
+
+    cff_info "host: $_CFF_OS_ID $_CFF_OS_VER, running kernel: $(uname -r)"
+    # shellcheck disable=SC2154  # PATCHED_KERNEL_VERSION is caller-provided
+    cff_info "patched kernel target: $PATCHED_KERNEL_VERSION"
+
+    # Step 4: already on or past the patched version?
+    if [[ "$PATCHED_KERNEL_VERSION" != "PENDING" ]]; then
+        local running
+        running="$(distro_running_kernel_version)"
+        if [[ -n "$running" ]] && kver_ge "$running" "$PATCHED_KERNEL_VERSION"; then
+            cff_ok "running kernel ($running) already includes the fix."
+            remove_mitigation_if_present
+            return 0
+        fi
+    fi
+
+    # Step 5: a patched package available from the repo?
+    if [[ "$PATCHED_KERNEL_VERSION" != "PENDING" ]]; then
+        local available
+        available="$(distro_available_kernel_version || true)"
+        if [[ -n "$available" ]] && kver_ge "$available" "$PATCHED_KERNEL_VERSION"; then
+            # shellcheck disable=SC2154  # KERNEL_PKG is caller-provided
+            cff_info "candidate kernel $available is at or above the patched target."
+            if (( CFF_CHECK )); then
+                # In dry-run we don't prompt the user and we don't bail out;
+                # we show what we'd do AND fall through to the mitigation
+                # preview so the user sees the complete picture.
+                cff_dim "would prompt: Install $KERNEL_PKG ($available) now?"
+                cff_dim "would run:    distro_install_kernel"
+                cff_dim "would warn:   kernel installed; REBOOT REQUIRED."
+            elif prompt_yes_no "Install $KERNEL_PKG ($available) now?"; then
+                cff_run distro_install_kernel
+                cff_warn "kernel installed. REBOOT REQUIRED to activate it."
+                cff_info "after reboot, re-run this script to verify and (auto-)remove the mitigation file."
+                return 0
+            else
+                cff_warn "user declined kernel install; falling through to mitigation."
+            fi
+        else
+            cff_info "no patched kernel available in repos yet."
+        fi
+    else
+        cff_info "patched version not yet recorded for this distro; applying mitigation."
+    fi
+
+    # Step 6: mitigation. In --check mode the action is a no-op preview, so
+    # gate the "in place" success line.
+    apply_mitigation
+    verify_mitigation
+    (( CFF_CHECK )) || cff_ok "mitigation in place. Re-run this script after your distro publishes a patched kernel."
+}
+
+# Universal-script path: just the modprobe blacklist + verify, no
+# package-manager interaction.
+run_mitigation_only() {
+    parse_args "$@"
+
+    if (( CFF_UNDO )); then
+        require_root "$@"
+        remove_mitigation_if_present
+        return 0
+    fi
+
+    require_root "$@"
+    detect_distro
+    cff_info "host: $_CFF_OS_ID $_CFF_OS_VER, running kernel: $(uname -r)"
+    cff_info "universal mode: applying modprobe blacklist only (no package-manager interaction)."
+
+    apply_mitigation
+    verify_mitigation
+    (( CFF_CHECK )) || cff_ok "mitigation in place."
+}
