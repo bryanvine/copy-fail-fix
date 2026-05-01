@@ -551,13 +551,21 @@ run_algorithm() {
         available="$(distro_available_kernel_version || true)"
         if [[ -n "$available" ]] && kver_ge "$available" "$PATCHED_KERNEL_VERSION"; then
             cff_info "candidate kernel $available is at or above the patched target."
-            if prompt_yes_no "Install $KERNEL_PKG ($available) now?"; then
+            if (( CFF_CHECK )); then
+                # In dry-run we don't prompt the user and we don't bail out;
+                # we show what we'd do AND fall through to the mitigation
+                # preview so the user sees the complete picture.
+                cff_dim "would prompt: Install $KERNEL_PKG ($available) now?"
+                cff_dim "would run:    distro_install_kernel"
+                cff_dim "would warn:   kernel installed; REBOOT REQUIRED."
+            elif prompt_yes_no "Install $KERNEL_PKG ($available) now?"; then
                 cff_run distro_install_kernel
                 cff_warn "kernel installed. REBOOT REQUIRED to activate it."
                 cff_info "after reboot, re-run this script to verify and (auto-)remove the mitigation file."
                 return 0
+            else
+                cff_warn "user declined kernel install; falling through to mitigation."
             fi
-            cff_warn "user declined kernel install; falling through to mitigation."
         else
             cff_info "no patched kernel available in repos yet."
         fi
@@ -565,10 +573,11 @@ run_algorithm() {
         cff_info "patched version not yet recorded for this distro; applying mitigation."
     fi
 
-    # Step 6: mitigation.
+    # Step 6: mitigation. In --check mode the action is a no-op preview, so
+    # gate the "in place" success line.
     apply_mitigation
     verify_mitigation
-    cff_ok "mitigation in place. Re-run this script after your distro publishes a patched kernel."
+    (( CFF_CHECK )) || cff_ok "mitigation in place. Re-run this script after your distro publishes a patched kernel."
 }
 
 # Universal-script path: just the modprobe blacklist + verify, no
@@ -589,7 +598,7 @@ run_mitigation_only() {
 
     apply_mitigation
     verify_mitigation
-    cff_ok "mitigation in place."
+    (( CFF_CHECK )) || cff_ok "mitigation in place."
 }
 ```
 
