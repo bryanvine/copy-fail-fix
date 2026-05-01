@@ -291,7 +291,11 @@ run_algorithm() {
         local running
         running="$(distro_running_kernel_version || true)"
         if [[ -n "$running" ]] && kver_ge "$running" "$PATCHED_KERNEL_VERSION"; then
-            cff_ok "running kernel ($running) already includes the fix."
+            if (( CFF_CHECK )); then
+                cff_info "running kernel ($running) already includes the fix."
+            else
+                cff_ok "running kernel ($running) already includes the fix."
+            fi
             remove_mitigation_if_present
             return 0
         fi

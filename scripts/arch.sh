@@ -26,7 +26,9 @@ distro_running_kernel_version() {
 distro_available_kernel_version() {
     # Refresh repo metadata, then ask pacman for the sync version.
     # We compare with vercmp against the installed version below.
-    pacman -Sy --noconfirm >/dev/null 2>&1 || true
+    if ! (( CFF_CHECK )); then
+        pacman -Sy --noconfirm >/dev/null 2>&1 || true
+    fi
     local sync_ver
     sync_ver="$(LC_ALL=C pacman -Si "$KERNEL_PKG" 2>/dev/null | awk -F': *' '$1=="Version" {print $2; exit}')"
     [[ -z "$sync_ver" ]] && return 0

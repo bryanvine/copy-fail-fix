@@ -17,13 +17,18 @@ PATCHED_KERNEL_VERSION="PENDING"
 
 distro_running_kernel_version() {
     # apk's installed-version syntax, e.g. "6.6.71-r0".
-    apk info -v "$KERNEL_PKG" 2>/dev/null | sed -E "s/^${KERNEL_PKG}-//;q" || true
+    # apk info -v output may have a trailing description; take only the first token.
+    apk info -v "$KERNEL_PKG" 2>/dev/null \
+        | awk -v p="$KERNEL_PKG" 'NR==1 {sub("^"p"-",""); print $1; exit}' \
+        || true
 }
 
 distro_available_kernel_version() {
     # `apk version` shows current vs. available. With -l '<' it lists
     # packages that have a newer version available.
-    apk update >/dev/null 2>&1 || true
+    if ! (( CFF_CHECK )); then
+        apk update >/dev/null 2>&1 || true
+    fi
     local line
     line="$(apk version -l '<' 2>/dev/null | awk -v p="$KERNEL_PKG" '$1 ~ "^"p"-" {print; exit}')"
     [[ -z "$line" ]] && return 0

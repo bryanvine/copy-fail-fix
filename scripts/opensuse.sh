@@ -26,7 +26,7 @@ distro_available_kernel_version() {
                  | awk -F': *' '/^Version/ {print $2; exit}')"
     [[ -z "$sync_ver" ]] && return 0
     current="$(distro_running_kernel_version)"
-    if [[ -n "$current" ]] && [[ "$(LC_ALL=C rpm --eval "%{lua: print(rpm.vercmp(\"$sync_ver\", \"$current\"))}")" -le 0 ]]; then
+    if [[ -n "$current" ]] && kver_ge "$current" "$sync_ver"; then
         return 0
     fi
     printf '%s\n' "$sync_ver"
