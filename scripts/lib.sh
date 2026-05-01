@@ -52,7 +52,7 @@ cff_run() {
 # Unknown flags are an error.
 # ---------------------------------------------------------------------------
 parse_args() {
-    # shellcheck disable=SC2034  # CFF_UNDO/CFF_MITIGATION_FILE used by later tasks
+    # shellcheck disable=SC2034  # CFF_UNDO is consumed by Task 4's run_algorithm
     while (( $# )); do
         case "$1" in
             -y|--yes)   CFF_YES=1 ;;
