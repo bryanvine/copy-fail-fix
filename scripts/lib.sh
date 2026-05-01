@@ -289,7 +289,7 @@ run_algorithm() {
     # Step 4: already on or past the patched version?
     if [[ "$PATCHED_KERNEL_VERSION" != "PENDING" ]]; then
         local running
-        running="$(distro_running_kernel_version)"
+        running="$(distro_running_kernel_version || true)"
         if [[ -n "$running" ]] && kver_ge "$running" "$PATCHED_KERNEL_VERSION"; then
             cff_ok "running kernel ($running) already includes the fix."
             remove_mitigation_if_present
@@ -302,8 +302,8 @@ run_algorithm() {
         local available
         available="$(distro_available_kernel_version || true)"
         if [[ -n "$available" ]] && kver_ge "$available" "$PATCHED_KERNEL_VERSION"; then
-            # shellcheck disable=SC2154  # KERNEL_PKG is caller-provided
             cff_info "candidate kernel $available is at or above the patched target."
+            # shellcheck disable=SC2154  # KERNEL_PKG is caller-provided
             if (( CFF_CHECK )); then
                 # In dry-run we don't prompt the user and we don't bail out;
                 # we show what we'd do AND fall through to the mitigation
@@ -341,6 +341,8 @@ run_mitigation_only() {
     if (( CFF_UNDO )); then
         require_root "$@"
         remove_mitigation_if_present
+        cff_info "undo complete. If you have NOT yet rebooted into a patched"
+        cff_info "kernel, your host may again be vulnerable."
         return 0
     fi
 
