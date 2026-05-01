@@ -1,15 +1,15 @@
 ---
 layout: post
 title: "Copy Fail (CVE-2026-31431): a 732-byte Python script roots every Linux server you own"
-date: 2026-05-01
+date: 2026-04-30
 categories: [linux, security]
 tags: [linux, security, cve, kernel]
 description: "What CVE-2026-31431 actually is, why it affects every Linux distribution shipped since 2017, and how to mitigate it without a reboot."
 ---
 
-I spent Wednesday afternoon patching my own infrastructure for a Linux kernel CVE that has been silently sitting in every major distribution for nine years. By Thursday I'd packaged the mitigation as per-distro shell scripts so other people don't have to figure it out from scratch: [github.com/bryanvine/copy-fail-fix](https://github.com/bryanvine/copy-fail-fix).
+I spent Thursday afternoon patching my own infrastructure for a Linux kernel CVE that has been silently sitting in every major distribution for nine years. By the end of the day I'd packaged the mitigation as per-distro shell scripts so other people don't have to figure it out from scratch: [github.com/bryanvine/copy-fail-fix](https://github.com/bryanvine/copy-fail-fix).
 
-This post is what I wish I'd been able to read on Wednesday morning.
+This post is what I wish I'd been able to read on Thursday morning.
 
 ## TL;DR
 
@@ -40,7 +40,7 @@ The published proof-of-concept is **732 bytes of Python**. No exotic dependencie
 
 The kernel changes that combine to produce this bug have been in every stable Linux kernel released since 2017. As of disclosure on 2026-04-29, the affected lineup includes:
 
-| Distribution | Kernel | Status as of 2026-05-01 |
+| Distribution | Kernel | Status as of 2026-04-30 |
 |---|---|---|
 | Ubuntu 24.04 LTS (and most older LTS) | 6.8 / 5.15 / 5.4 | Vulnerable; no patched package yet |
 | Debian (stable, oldstable) | 6.1 / 5.10 | Vulnerable |
