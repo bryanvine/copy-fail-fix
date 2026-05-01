@@ -63,14 +63,12 @@ parse_args() {
             --undo)     CFF_UNDO=1 ;;
             -h|--help)
                 cff_print_help
-                # Use return so callers in a subshell handle exit themselves.
-                # Per-distro scripts: ( parse_args --help ) exits via subshell.
-                return 0
+                exit 0
                 ;;
             *)
                 cff_err "unknown flag: $1"
                 cff_print_help >&2
-                return 64
+                exit 64
                 ;;
         esac
         shift
