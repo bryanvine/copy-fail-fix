@@ -195,7 +195,7 @@ install algif_aead /bin/true
         cff_info "mitigation file already in place: $CFF_MITIGATION_FILE"
     else
         cff_run bash -c "printf '%s' \"\$1\" > \"\$2\" && chmod 0644 \"\$2\"" _ "$body" "$CFF_MITIGATION_FILE"
-        cff_ok "wrote $CFF_MITIGATION_FILE"
+        (( CFF_CHECK )) || cff_ok "wrote $CFF_MITIGATION_FILE"
     fi
 
     # Best-effort: try to unload algif_aead if currently loaded. Failure is
@@ -245,7 +245,7 @@ PY
 remove_mitigation_if_present() {
     if [[ -f "$CFF_MITIGATION_FILE" ]]; then
         cff_run rm -f -- "$CFF_MITIGATION_FILE"
-        cff_ok "removed $CFF_MITIGATION_FILE"
+        (( CFF_CHECK )) || cff_ok "removed $CFF_MITIGATION_FILE"
     else
         cff_info "no mitigation file to remove."
     fi
