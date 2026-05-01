@@ -1,0 +1,29 @@
+title: copy-fail-fix
+description: >-
+  Per-distro mitigation scripts for CVE-2026-31431 ("Copy Fail") —
+  a Linux kernel algif_aead local privilege escalation that affects
+  every major Linux distribution shipped since 2017.
+
+# GitHub-Pages-supported theme.
+theme: minima
+
+url: https://bryanvine.github.io
+baseurl: /copy-fail-fix
+
+minima:
+  skin: classic
+  social_links:
+    - { platform: github, user_url: "https://github.com/bryanvine/copy-fail-fix" }
+
+show_excerpts: true
+
+# Internal design/plan docs live alongside the Pages content but should not
+# be rendered as part of the published site.
+exclude:
+  - specs
+  - plans
+  - Gemfile
+  - Gemfile.lock
+
+# Post permalink: /YYYY/MM/DD/slug
+permalink: /:year/:month/:day/:title/
